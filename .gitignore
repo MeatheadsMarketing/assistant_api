@@ -32,3 +32,4 @@ build/
 # VSCode/IDE metadata
 .vscode/
 .idea/
+.DS_Store
