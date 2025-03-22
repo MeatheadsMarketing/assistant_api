@@ -1,0 +1,7 @@
+{
+    "task_type": "web_scraper",
+    "prompt": "Scrape laptops from Newegg",
+    "url": "https://www.newegg.com/laptops",
+    "filters": "price, rating",
+    "timestamp": "2025-03-22T02:00:00"
+}
