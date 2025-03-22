@@ -318,3 +318,43 @@ if os.path.exists(log_file_path):
                     st.code(line.strip())
     except:
         st.sidebar.caption("⚠️ Failed to preview tail of log.")
+
+
+
+# 26️⃣ Assistant Type Quick Switcher (improved rerun logic)
+st.sidebar.markdown("### 🔁 Quick Switch")
+quick_switch = st.sidebar.selectbox("Jump to Assistant", assistant_list, index=0)
+if quick_switch != selected and "switch_target" not in st.session_state:
+    st.session_state["switch_target"] = quick_switch
+    st.experimental_rerun()
+
+# 27️⃣ Filter Assistant Dropdown by Keyword (refined)
+st.sidebar.markdown("### 🔎 Search Assistants")
+search = st.sidebar.text_input("Type to filter", "")
+if search:
+    assistant_list = [a for a in assistant_list if search.lower().strip() in a.lower()]
+
+# 28️⃣ Output File Explorer (with size and modified time)
+st.sidebar.markdown("### 📂 Output File Explorer")
+if output_dir.exists():
+    assistant_folders = [f for f in output_dir.iterdir() if f.is_dir()]
+    for folder in assistant_folders:
+        with st.sidebar.expander(f"📁 {folder.name}"):
+            files = list(folder.glob("*"))
+            for file in files[:3]:
+                size = file.stat().st_size
+                mod_time = datetime.fromtimestamp(file.stat().st_mtime).strftime("%Y-%m-%d %H:%M:%S")
+                st.markdown(f"- `{file.name}` • {size} bytes • {mod_time}")
+
+# 29️⃣ Toggle Display Mode (refined with session)
+display_mode = st.sidebar.radio("Display Mode", ["Compact", "Full"])
+st.sidebar.markdown(f"🧰 Current Mode: `{display_mode}`")
+if display_mode == "Compact":
+    st.markdown("<style>div.block-container{padding:1rem;}</style>", unsafe_allow_html=True)
+
+# 30️⃣ Visual Assistant Icon Map (ready for interactive expansion)
+st.sidebar.markdown("### 🧩 Assistant Icons")
+for k, v in ASSISTANT_TAGS.items():
+    icon = v.split()[0]
+    st.sidebar.markdown(f"- {icon} `{k}`")
+
