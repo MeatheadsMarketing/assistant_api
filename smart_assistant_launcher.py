@@ -3,7 +3,7 @@ import os, json
 import pandas as pd
 from datetime import datetime
 import requests
-from pages import upload_zone
+from frontend_app.pages import upload_zone
 
 # ✅ Configure Streamlit page (set once for entire app)
 st.set_page_config(page_title="🧠 Smart Assistant Launcher", layout="wide")  # Use wide layout for data tables
