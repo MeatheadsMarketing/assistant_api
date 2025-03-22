@@ -1,0 +1,34 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# macOS system files
+.DS_Store
+
+# Virtual environments
+venv/
+.env/
+
+# Jupyter checkpoints
+.ipynb_checkpoints/
+
+# Local configs & tokens
+client_secret.json
+
+# Output & cache
+output/
+config/
+
+# Package distribution files
+*.egg-info/
+dist/
+build/
+
+# Logs and runtime
+*.log
+*.zip
+
+# VSCode/IDE metadata
+.vscode/
+.idea/

@@ -114,6 +114,9 @@ with st.form("assistant_form"):
             st.error(f"❌ Drive upload failed: {e}")
 
 # ✅ Output Preview (safe fallback)
+
+os.makedirs("output/web_scraper", exist_ok=True)
+
 st.markdown("---")
 st.subheader("📄 Latest Output Preview")
 OUTPUT_DIR = "output"

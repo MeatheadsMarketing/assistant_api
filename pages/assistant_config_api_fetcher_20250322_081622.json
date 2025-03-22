@@ -1,0 +1,7 @@
+{
+    "task_type": "api_fetcher",
+    "prompt": "Scrape latest laptops from Newegg with prices and ratings",
+    "url": "https://www.newegg.com/laptops",
+    "filters": "price, rating",
+    "timestamp": "2025-03-22T08:16:22.661248"
+}
