@@ -4,6 +4,16 @@ from pydantic import BaseModel
 from runner import run_assistant
 import os
 import json
+from fastapi.middleware.cors import CORSMiddleware
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # or specify: ["http://localhost:8501"]
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 
 class TaskType(str, Enum):
     web_scraper = "web_scraper"
