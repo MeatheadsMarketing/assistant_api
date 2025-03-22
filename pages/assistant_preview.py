@@ -1,50 +1,41 @@
+
 import streamlit as st
 import os
-import yaml
 import pandas as pd
-
-OUTPUTS_DIR = "outputs"
-
-st.set_page_config(page_title="Assistant Preview", layout="wide")
-st.title("🧠 Assistant Preview")
-
-# 🔍 Scan assistant folders
+import json
 
 OUTPUT_DIR = "output"
-os.makedirs(OUTPUT_DIR, exist_ok=True)
-assistants = sorted(os.listdir(OUTPUT_DIR))
 
-selected_assistant = st.selectbox("Choose Assistant:", assistants)
+st.set_page_config(page_title="Assistant Preview", layout="wide")
+st.title("📁 Assistant Output Archive & Run History")
 
-assistant_path = os.path.join(OUTPUTS_DIR, selected_assistant)
-files = os.listdir(assistant_path)
+# Get available assistants from output folders
+assistants = sorted([d for d in os.listdir(OUTPUT_DIR) if os.path.isdir(os.path.join(OUTPUT_DIR, d))])
+selected = st.sidebar.selectbox("🧠 Choose Assistant", assistants)
 
-# 🔍 Load YAML
-yaml_file = next((f for f in files if f.endswith("_blueprint") and f.endswith(".yaml")), None)
-if yaml_file:
-    with open(os.path.join(assistant_path, yaml_file), "r", encoding="utf-8") as f:
-        blueprint_data = yaml.safe_load(f)
-    st.subheader("📘 Assistant Blueprint (YAML)")
-    st.code(yaml.dump(blueprint_data, sort_keys=False), language="yaml")
+if selected:
+    output_path = os.path.join(OUTPUT_DIR, selected)
+    history_path = os.path.join(output_path, "history.json")
 
-# 📝 Load Markdown
-md_file = next((f for f in files if f.endswith("_card") and f.endswith(".md")), None)
-if md_file:
-    with open(os.path.join(assistant_path, md_file), "r", encoding="utf-8") as f:
-        markdown_content = f.read()
-    st.subheader("🧾 Assistant Card (Markdown)")
-    st.markdown(markdown_content)
+    st.subheader(f"📜 Run History for `{selected}`")
+    if os.path.exists(history_path):
+        with open(history_path) as f:
+            history = json.load(f)
 
-# 📊 Load CSV
-csv_file = next((f for f in files if f.endswith("_kep") and f.endswith(".csv")), None)
-if csv_file:
-    df = pd.read_csv(os.path.join(assistant_path, csv_file))
-    st.subheader("📊 Assistant Concepts (KEP CSV)")
-    st.dataframe(df)
-
-# 📥 Download All
-st.markdown("---")
-st.subheader("⬇️ Download Files")
-for f in files:
-    with open(os.path.join(assistant_path, f), "rb") as file:
-        st.download_button(label=f"Download {f}", data=file, file_name=f)
+        for run in reversed(history[-5:]):  # show last 5 runs
+            st.markdown(f"**🕒 {run['timestamp']}** — `{run.get('prompt', '')}`")
+            if run.get("file", "").endswith(".csv"):
+                try:
+                    df = pd.read_csv(os.path.join(output_path, run["file"]))
+                    st.dataframe(df)
+                except:
+                    st.warning(f"{run['file']} is empty or malformed.")
+            elif run.get("file", "").endswith(".json"):
+                try:
+                    with open(os.path.join(output_path, run["file"])) as j:
+                        data = json.load(j)
+                        st.json(data)
+                except:
+                    st.warning(f"{run['file']} is malformed.")
+    else:
+        st.info("No run history found for this assistant.")
