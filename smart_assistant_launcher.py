@@ -8,6 +8,8 @@ from pathlib import Path
 from uuid import uuid4
 import zipfile
 
+
+
 # 1️⃣ Fetch assistant metadata from backend
 @st.cache_data
 def fetch_assistant_list():
@@ -16,6 +18,22 @@ def fetch_assistant_list():
         return res.json().get("available", [])
     except:
         return []
+
+# ✅ Attempt to load assistant list or fallback to local scan
+assistant_list = fetch_assistant_list()
+if not assistant_list:
+    st.warning("⚠️ No assistants loaded from API — trying local fallback")
+    assistant_files = list(Path("assistants").glob("*.py"))
+    assistant_list = [
+        f.stem for f in assistant_files
+        if not f.stem.startswith("_") and f.name != "__init__.py"
+    ]
+
+if not assistant_list:
+    st.error("❌ No assistants found. Please check /assistants/ directory.")
+else:
+    st.sidebar.success(f"✅ {len(assistant_list)} assistants loaded.")
+
 
 # 2️⃣ Build assistant tag map (static for now)
 ASSISTANT_TAGS = {
