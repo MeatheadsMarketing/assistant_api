@@ -58,7 +58,7 @@ with st.form("web_crawler_form"):
             st.markdown(f"[📄 View on Google Drive]({drive_link})")
 
             # Trigger the assistant webhook via Render API
-            api_url = "https://assistant-api-pzi8.onrender.com/run-assistant"
+            api_url = "https://assistant-api-pzj8.onrender.com/run-assistant"
             try:
                 res = requests.post(api_url, json=config_data)
                 if res.status_code == 200:
