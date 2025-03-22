@@ -1,14 +1,8 @@
-import requests
-from bs4 import BeautifulSoup
-import pandas as pd
-from datetime import datetime
-import os
-
 def run_assistant(config):
     task_type = config.get("task_type")
 
     if task_type == "web_scraper":
-        from web_scraper import run_web_scraper
+        from assistants.web_scraper import run_web_scraper
         return run_web_scraper(config)
 
     elif task_type == "api_fetcher":
@@ -16,4 +10,4 @@ def run_assistant(config):
         return run_api_fetcher(config)
 
     else:
-        return "❌ Unsupported task_type"
+        return f"❌ Unsupported task_type: {task_type}"

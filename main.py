@@ -1,11 +1,16 @@
+from fastapi import FastAPI
+from enum import Enum
 from pydantic import BaseModel
-from fastapi import FastAPI, Request
 from runner import run_assistant
-import os, json
-from pydantic import BaseModel
+import os
+import json
+
+class TaskType(str, Enum):
+    web_scraper = "web_scraper"
+    api_fetcher = "api_fetcher"
 
 class AssistantConfig(BaseModel):
-    task_type: str
+    task_type: TaskType
     prompt: str
     url: str
     filters: str
@@ -21,7 +26,6 @@ class AssistantConfig(BaseModel):
                 "timestamp": "2025-03-22T02:00:00"
             }
         }
-
 
 app = FastAPI()
 
