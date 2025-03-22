@@ -1,9 +1,13 @@
 import streamlit as st
-import os, json
-import pandas as pd
-from datetime import datetime
-import requests
+
+# ⬅️ MUST be the very first Streamlit command
+st.set_page_config(page_title="🧠 Smart Assistant Launcher", layout="wide")
+
+# THEN: import everything else
+from pathlib import Path
+import json, os, uuid
 from frontend_app.pages import upload_zone
+from frontend_app.pages import output_export
 
 # ✅ Configure Streamlit page (set once for entire app)
 st.set_page_config(page_title="🧠 Smart Assistant Launcher", layout="wide")  # Use wide layout for data tables
