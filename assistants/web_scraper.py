@@ -29,12 +29,13 @@ def run(config):
         df = pd.DataFrame(items)
         out_dir = "output/web_scraper"
         os.makedirs(out_dir, exist_ok=True)
-        filename = f"{out_dir}/web_scraper_output_20250322_143513.csv"
+        filename = f"{out_dir}/web_scraper_output_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
         df.to_csv(filename, index=False)
 
         return {
             "status": "✅ Success",
             "outputs": [filename]
         }
+
     except Exception as e:
         return {"status": "❌ Failed", "error": str(e)}

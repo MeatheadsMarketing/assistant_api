@@ -17,12 +17,13 @@ def run(config):
 
         out_dir = "output/api_fetcher"
         os.makedirs(out_dir, exist_ok=True)
-        filename = f"{out_dir}/api_fetcher_output_20250322_143513.csv"
+        filename = f"{out_dir}/api_fetcher_output_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
         df.to_csv(filename, index=False)
 
         return {
             "status": "✅ Success",
             "outputs": [filename]
         }
+
     except Exception as e:
         return {"status": "❌ Failed", "error": str(e)}
