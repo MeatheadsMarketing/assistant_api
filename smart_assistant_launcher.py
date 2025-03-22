@@ -2,7 +2,7 @@
 import streamlit as st
 st.set_page_config(page_title="🧠 Smart Assistant Launcher", layout="wide")  # ← Move this here
 
-# THEN: import everything else
+from datetime import datetime
 from pathlib import Path
 import json, os, uuid
 from frontend_app.pages import upload_zone
