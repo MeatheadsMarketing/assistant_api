@@ -120,3 +120,73 @@ for assistant in sorted(output_dir.iterdir()):
 st.sidebar.markdown("### 🏷 Assistant Tags")
 for name, tag in ASSISTANT_TAGS.items():
     st.sidebar.markdown(f"- `{name}` → {tag}")
+
+
+# Constants
+API_BASE = "https://assistant-api-pzj8.onrender.com"
+
+# Cached assistant description
+@st.cache_data
+def get_assistant_description(task):
+    try:
+        res = requests.get(f"{API_BASE}/docs/{task}")
+        return res.text if res.status_code == 200 else None
+    except:
+        return None
+
+# 11️⃣ Assistant Description Block (refined)
+st.sidebar.markdown("### 📘 Assistant Description")
+description = get_assistant_description(selected)
+if description:
+    st.sidebar.markdown(description)
+else:
+    st.sidebar.info("ℹ️ Description unavailable for this assistant.")
+
+# 12️⃣ Recently Used Assistant Tracker (refined)
+recent_path = Path("recent.json")
+if recent_path.exists():
+    with open(recent_path) as f:
+        recent = json.load(f)
+else:
+    recent = []
+if selected:
+    if selected in recent:
+        recent.remove(selected)
+    recent.insert(0, selected)
+    recent = recent[:5]
+    with open(recent_path, "w") as f:
+        json.dump(recent, f)
+if recent:
+    st.sidebar.markdown("### ⏱ Recently Used")
+    for r in recent:
+        st.sidebar.markdown(f"- `{r}`")
+
+# 13️⃣ Save Result Metadata After Run (refined)
+runlog_path = Path("logs/run_summary.jsonl")
+runlog_path.parent.mkdir(parents=True, exist_ok=True)
+if submitted:
+    try:
+        with open(runlog_path, "a") as log:
+            log.write(json.dumps({
+                "task_type": selected,
+                "timestamp": config.get("timestamp", datetime.now().isoformat()),
+                "filename": filename
+            }) + "\n")
+    except Exception as e:
+        st.warning(f"⚠️ Failed to log run summary: {e}")
+
+# 14️⃣ Display Last Run Summary (refined)
+st.sidebar.markdown("### 🧾 Last Run Summary")
+try:
+    with open(runlog_path) as f:
+        lines = f.readlines()
+        if lines:
+            last = json.loads(lines[-1])
+            st.sidebar.success(f"✅ `{last['task_type']}` at `{last['timestamp']}`")
+except Exception as e:
+    st.sidebar.warning("⚠️ Last run summary corrupted.")
+
+# 15️⃣ Docs & Guide Link (refined)
+st.sidebar.markdown("---")
+st.sidebar.markdown("[📘 Docs & Guide](https://github.com/MeatheadsMarketing/assistant_api)")
+st.sidebar.caption("Build v1.0 • GitHub synced")
