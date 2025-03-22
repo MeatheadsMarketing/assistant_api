@@ -1,0 +1,11 @@
+{
+  "task_type": "web_scraper",
+  "prompt": "Scrape sample product listings",
+  "url": "https://example.com/products",
+  "filters": "title, price, rating",
+  "pages": 2,
+  "selectors": "selectors.json",
+  "use_browser": false,
+  "callback_url": "https://webhook.site/test-callback-url",
+  "timestamp": "2025-03-22T14:00:00"
+}
