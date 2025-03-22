@@ -1,3 +1,4 @@
+from pydantic import BaseModel
 from fastapi import FastAPI, Request
 from runner import run_assistant
 import os, json
