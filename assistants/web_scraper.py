@@ -29,7 +29,9 @@ def run(config):
         df = pd.DataFrame(items)
         out_dir = "output/web_scraper"
         os.makedirs(out_dir, exist_ok=True)
-        filename = f"{out_dir}/web_scraper_output_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+	out_dir = "output/web_scraper"
+	os.makedirs(out_dir, exist_ok=True)
+	filename = f"{out_dir}/web_scraper_output_{timestamp}.csv"
         df.to_csv(filename, index=False)
 
         return {
