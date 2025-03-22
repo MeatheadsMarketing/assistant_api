@@ -7,7 +7,7 @@ from datetime import datetime
 from pathlib import Path
 from uuid import uuid4
 import zipfile
-
+from upload_zone import *  # Loads uploader sidebar
 
 
 # 1️⃣ Fetch assistant metadata from backend
@@ -376,3 +376,4 @@ for k, v in ASSISTANT_TAGS.items():
     icon = v.split()[0]
     st.sidebar.markdown(f"- {icon} `{k}`")
 
+from output_export_ui import *  # 👈 enables sidebar ZIP/download tools
