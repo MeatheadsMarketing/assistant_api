@@ -1,0 +1,7 @@
+{
+    "task_type": "web_scraper",
+    "prompt": "Scrape book listings from books.toscrape.com",
+    "url": "https://books.toscrape.com/",
+    "filters": "",
+    "timestamp": "2025-03-22T16:08:08.535998"
+}
