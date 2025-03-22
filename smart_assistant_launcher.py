@@ -1,382 +1,273 @@
 import streamlit as st
-st.set_page_config(layout="wide", page_title="🧠 Smart Assistant Launcher")
-
-import streamlit as st
-import os
-import json
+import os, json
 import pandas as pd
-import requests
 from datetime import datetime
-from pathlib import Path
-from uuid import uuid4
-import zipfile
-from upload_zone import *  # Loads uploader sidebar
+import requests
 
+# ✅ Configure Streamlit page (set once for entire app)
+st.set_page_config(page_title="🧠 Smart Assistant Launcher", layout="wide")  # Use wide layout for data tables
 
-# 1️⃣ Fetch assistant metadata from backend
-@st.cache_data
-def fetch_assistant_list():
-    try:
-        res = requests.get("https://assistant-api-pzj8.onrender.com/assistants")
-        return res.json().get("available", [])
-    except:
-        return []
-
-# ✅ Attempt to load assistant list or fallback to local scan
-assistant_list = fetch_assistant_list()
-if not assistant_list:
-    st.warning("⚠️ No assistants loaded from API — trying local fallback")
-    assistant_files = list(Path("assistants").glob("*.py"))
-    assistant_list = [
-        f.stem for f in assistant_files
-        if not f.stem.startswith("_") and f.name != "__init__.py"
-    ]
-
-if not assistant_list:
-    st.error("❌ No assistants found. Please check /assistants/ directory.")
-else:
-    st.sidebar.success(f"✅ {len(assistant_list)} assistants loaded.")
-
-
-# 2️⃣ Build assistant tag map (static for now)
-ASSISTANT_TAGS = {
-    "web_scraper": "🔎 Scraper",
-    "api_fetcher": "🌐 API",
-    "kep_extractor": "🧠 KEP",
-    "blueprint_generator": "📐 Builder",
-    "assistant_chainer": "🔁 Chainer"
-}
-
-st.set_page_config(layout="wide", page_title="🧠 Smart Assistant Launcher")
 st.title("🧠 Smart Assistant Launcher")
 
-# 10️⃣ Theme Switcher
-st.sidebar.markdown("### ⚙️ Theme")
-theme = st.sidebar.radio("Choose Theme", ["Light", "Dark"])
-if theme == "Dark":
-    st.markdown("<style>body{background-color:#1e1e1e;color:white;}</style>", unsafe_allow_html=True)
+# ✅ Sidebar: Google Drive Credentials upload
+st.sidebar.subheader("🔐 Upload Google Credentials")
+creds_file = st.sidebar.file_uploader("Upload your Google Drive service account JSON", type="json")
+if creds_file:
+    with open("client_secret.json", "wb") as f:
+        f.write(creds_file.read())
+    st.sidebar.success("✅ Credentials file saved")
 
-# Assistant picker
-assistant_list = fetch_assistant_list()
-selected = st.selectbox("Choose an Assistant", assistant_list)
-tag = ASSISTANT_TAGS.get(selected, "🧠 General")
-st.markdown(f"### {tag} Assistant: `{selected}`")
+# ✅ Google Drive upload helper
+from google.oauth2 import service_account
+from googleapiclient.discovery import build
+from googleapiclient.http import MediaFileUpload
 
-# 7️⃣ Visual Run Status Tracker (emoji placeholder)
-status_emoji = "🟢" if selected else "🔴"
-st.sidebar.markdown(f"#### Status: {status_emoji} Ready")
-
-# 9️⃣ Assistant Creator UI (Upload to /assistants/)
-st.sidebar.markdown("### 📥 Upload New Assistant")
-upload = st.sidebar.file_uploader("Upload Assistant .py File", type="py")
-if upload:
-    Path("assistants").mkdir(exist_ok=True)
-    target_path = Path("assistants") / upload.name
-    with open(target_path, "wb") as f:
-        f.write(upload.read())
-    st.sidebar.success(f"Uploaded {upload.name} ✅")
-
-# 2️⃣ Per-Assistant Input Forms
-with st.form("assistant_form"):
-    prompt = st.text_input("Prompt")
-    url = st.text_input("URL", "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd")
-    filters = st.text_input("Filters (comma-separated)", "price, rating")
-    submitted = st.form_submit_button("💾 Submit & Trigger")
-
-    if submitted:
-        config = {
-            "task_type": selected,
-            "prompt": prompt,
-            "url": url,
-            "filters": filters,
-            "timestamp": datetime.now().isoformat()
-        }
-        filename = f"config_{selected}_{uuid4().hex[:6]}.json"
-        with open(os.path.join("config", filename), "w") as f:
-            json.dump(config, f, indent=2)
-
-        # 3️⃣ Live Webhook Logs
-        with st.spinner("🚀 Running assistant via webhook..."):
-            try:
-                res = requests.post("https://assistant-api-pzj8.onrender.com/run-assistant", json=config)
-                if res.status_code == 200:
-                    result = res.json()
-                    st.success("✅ Assistant completed!")
-                    st.code(json.dumps(result, indent=2), language="json")
-                else:
-                    st.error(f"❌ Webhook failed: {res.status_code}")
-            except Exception as e:
-                st.error(f"❌ Request error: {e}")
-
-# 5️⃣ Config Browser
-st.sidebar.markdown("### 📂 Browse Config Files")
-config_dir = Path("config")
-config_dir.mkdir(exist_ok=True)
-all_configs = sorted(config_dir.glob("*.json"), reverse=True)[:5]
-for cfile in all_configs:
-    with st.sidebar.expander(f"🧾 {cfile.name}"):
-        with open(cfile) as f:
-            st.json(json.load(f))
-
-# 6️⃣ Output ZIP Downloader + Run Replayer
-st.sidebar.markdown("### 🗂 Run Archives")
-output_dir = Path("output")
-archive_dir = Path("archive")
-archive_dir.mkdir(exist_ok=True)
-
-for assistant in sorted(output_dir.iterdir()):
-    if assistant.is_dir():
-        latest_zip = archive_dir / f"{assistant.name}_latest.zip"
-        zipf = zipfile.ZipFile(latest_zip, 'w')
-        files = list(assistant.glob("*"))
-        for f in files:
-            zipf.write(f, arcname=f.name)
-        zipf.close()
-        with st.sidebar.expander(f"📦 {assistant.name}"):
-            st.download_button("⬇️ Download Archive", latest_zip.read_bytes(), file_name=latest_zip.name)
-            for f in files[:3]:
-                st.caption(f.name)
-
-# 8️⃣ Assistant Tags Display
-st.sidebar.markdown("### 🏷 Assistant Tags")
-for name, tag in ASSISTANT_TAGS.items():
-    st.sidebar.markdown(f"- `{name}` → {tag}")
-
-
-# Constants
-API_BASE = "https://assistant-api-pzj8.onrender.com"
-
-# Cached assistant description
-@st.cache_data
-def get_assistant_description(task):
-    try:
-        res = requests.get(f"{API_BASE}/docs/{task}")
-        return res.text if res.status_code == 200 else None
-    except:
-        return None
-
-# 11️⃣ Assistant Description Block (refined)
-st.sidebar.markdown("### 📘 Assistant Description")
-description = get_assistant_description(selected)
-if description:
-    st.sidebar.markdown(description)
-else:
-    st.sidebar.info("ℹ️ Description unavailable for this assistant.")
-
-# 12️⃣ Recently Used Assistant Tracker (refined)
-recent_path = Path("recent.json")
-if recent_path.exists():
-    with open(recent_path) as f:
-        recent = json.load(f)
-else:
-    recent = []
-if selected:
-    if selected in recent:
-        recent.remove(selected)
-    recent.insert(0, selected)
-    recent = recent[:5]
-    with open(recent_path, "w") as f:
-        json.dump(recent, f)
-if recent:
-    st.sidebar.markdown("### ⏱ Recently Used")
-    for r in recent:
-        st.sidebar.markdown(f"- `{r}`")
-
-# 13️⃣ Save Result Metadata After Run (refined)
-runlog_path = Path("logs/run_summary.jsonl")
-runlog_path.parent.mkdir(parents=True, exist_ok=True)
-if submitted:
-    try:
-        with open(runlog_path, "a") as log:
-            log.write(json.dumps({
-                "task_type": selected,
-                "timestamp": config.get("timestamp", datetime.now().isoformat()),
-                "filename": filename
-            }) + "\n")
-    except Exception as e:
-        st.warning(f"⚠️ Failed to log run summary: {e}")
-
-# 14️⃣ Display Last Run Summary (refined)
-st.sidebar.markdown("### 🧾 Last Run Summary")
-try:
-    with open(runlog_path) as f:
-        lines = f.readlines()
-        if lines:
-            last = json.loads(lines[-1])
-            st.sidebar.success(f"✅ `{last['task_type']}` at `{last['timestamp']}`")
-except Exception as e:
-    st.sidebar.warning("⚠️ Last run summary corrupted.")
-
-# 15️⃣ Docs & Guide Link (refined)
-st.sidebar.markdown("---")
-st.sidebar.markdown("[📘 Docs & Guide](https://github.com/MeatheadsMarketing/assistant_api)")
-st.sidebar.caption("Build v1.0 • GitHub synced")
-
-
-# 16️⃣ Run Metrics Tracker (enhanced with size check)
-st.sidebar.markdown("### 📊 Run Metrics")
-log_file = "logs/run_summary.jsonl"
-try:
-    if os.path.exists(log_file) and os.path.getsize(log_file) < 1_000_000:
-        summary_df = pd.read_json(log_file, lines=True)
-        counts = summary_df["task_type"].value_counts().to_dict()
-        for name, count in counts.items():
-            st.sidebar.markdown(f"`{name}` → {count} runs")
-    else:
-        st.sidebar.caption("⚠️ Log too large or unavailable.")
-except Exception as e:
-    st.sidebar.caption(f"⚠️ Failed to load metrics: {e}")
-
-# 17️⃣ Config Comparison Tool (with full views)
-st.sidebar.markdown("### 🔍 Compare Configs")
-if len(all_configs) >= 2:
-    config_a = st.sidebar.selectbox("Config A", all_configs, index=0)
-    config_b = st.sidebar.selectbox("Config B", all_configs, index=1)
-    if st.sidebar.button("🧬 Compare JSONs"):
-        with open(config_a) as a, open(config_b) as b:
-            json_a = json.load(a)
-            json_b = json.load(b)
-        st.markdown("#### 🔍 JSON A vs JSON B")
-        st.json({"A Only": {k: v for k, v in json_a.items() if k not in json_b},
-                 "B Only": {k: v for k, v in json_b.items() if k not in json_a}})
-        with st.expander("Full Config A"):
-            st.json(json_a)
-        with st.expander("Full Config B"):
-            st.json(json_b)
-
-# 18️⃣ Assistant Category Filter (static for now)
-st.sidebar.markdown("### 🎛 Filter by Category")
-categories = {
-    "🧠 NLP": ["gpt_kep", "clarity_summarizer"],
-    "🔁 Utility": ["api_fetcher", "web_scraper"]
-}
-selected_cat = st.sidebar.radio("Filter Assistants", list(categories.keys()) + ["All"])
-if selected_cat != "All":
-    assistant_list = [a for a in assistant_list if a in categories[selected_cat]]
-
-# 19️⃣ Versioned Config Saving (refined path)
-if submitted:
-    version = datetime.now().strftime("v%Y%m%d_%H%M%S")
-    versioned_name = f"config_{selected}_{version}.json"
-    config_path = Path("config") / selected
-    config_path.mkdir(parents=True, exist_ok=True)
-    with open(config_path / versioned_name, "w") as f:
-        json.dump(config, f, indent=2)
-    st.sidebar.success(f"✅ Saved versioned config: {versioned_name}")
-
-# 20️⃣ Auto-Replay Config with banner
-st.sidebar.markdown("### 🔁 Replay Last Config")
-if all_configs:
-    replay = st.sidebar.selectbox("Choose config to replay", all_configs)
-    if st.sidebar.button("🚀 Re-run Config"):
-        with open(replay) as f:
-            replay_config = json.load(f)
-        try:
-            res = requests.post("https://assistant-api-pzj8.onrender.com/run-assistant", json=replay_config)
-            if res.status_code == 200:
-                result = res.json()
-                st.success("✅ Replayed config successfully!")
-                st.code(json.dumps(result, indent=2), language="json")
-                st.sidebar.success(f"✅ Replayed `{replay_config['task_type']}` config")
-            else:
-                st.error(f"❌ Replay failed: {res.status_code}")
-        except Exception as e:
-            st.error(f"❌ Replay error: {e}")
-
-
-
-# 21️⃣ Display config path with validation
-if submitted:
-    full_path = config_path / versioned_name
-    if os.path.exists(full_path):
-        st.sidebar.markdown(f"🧭 Config Path: `{full_path}`")
-    else:
-        st.sidebar.warning("⚠️ Config path may not be accessible.")
-
-# 22️⃣ Assistant Registry Ping with Timestamp
-try:
-    st.sidebar.markdown("### 📘 Registry Status")
-    ping = requests.get("https://assistant-api-pzj8.onrender.com/assistants").json()
-    st.sidebar.success("✅ Registered: " + ", ".join(ping.get("available", [])))
-    st.sidebar.caption(f"Last check: {datetime.now().strftime('%H:%M:%S')}")
-except:
-    st.sidebar.warning("⚠️ Assistant registry could not be loaded.")
-
-# 23️⃣ Run Summary Chart (with robustness)
-try:
-    history_df = pd.read_json("logs/run_summary.jsonl", lines=True)
-    success_counts = history_df["task_type"].value_counts().reset_index()
-    success_counts.columns = ["task", "runs"]
-    st.sidebar.markdown("### 📈 Run Summary Chart")
-    st.sidebar.bar_chart(success_counts.set_index("task"))
-except Exception as e:
-    st.sidebar.caption(f"⚠️ Not enough data for chart. ({e})")
-
-# 24️⃣ Most Common Filters (normalized)
-try:
-    filters_cleaned = history_df["filters"].dropna().str.strip().str.lower()
-    most_used_filters = filters_cleaned.value_counts().head(5)
-    st.sidebar.markdown("### 🔍 Top Filters")
-    for k, v in most_used_filters.items():
-        st.sidebar.markdown(f"- `{k}` ×{v}")
-except:
-    st.sidebar.caption("⚠️ No filter stats yet.")
-
-# 25️⃣ Export Full Log File + Log Tail Preview
-log_file_path = "logs/run_summary.jsonl"
-if os.path.exists(log_file_path):
-    st.sidebar.download_button(
-        label="⬇️ Export Run Log",
-        data=open(log_file_path, "rb"),
-        file_name="run_summary.jsonl",
-        mime="text/plain"
+def upload_to_drive(file_path, file_name):
+    """Upload a file to Google Drive (root directory) using service account credentials."""
+    creds = service_account.Credentials.from_service_account_file(
+        "client_secret.json", scopes=["https://www.googleapis.com/auth/drive.file"]
     )
+    service = build("drive", "v3", credentials=creds)
+    file_metadata = {"name": file_name, "parents": ["root"]}
+    media = MediaFileUpload(file_path, resumable=True)
+    uploaded = service.files().create(body=file_metadata, media_body=media, fields="id").execute()
+    return f"https://drive.google.com/file/d/{uploaded['id']}/view"
+
+# ✅ Load available assistants dynamically
+ASSISTANT_DIR = "assistants"
+os.makedirs(ASSISTANT_DIR, exist_ok=True)
+# Ensure assistants folder is a package for dynamic import
+init_file = os.path.join(ASSISTANT_DIR, "__init__.py")
+if not os.path.exists(init_file):
+    open(init_file, "a").close()
+try:
+    assistant_types = sorted([
+        f.replace(".py", "") for f in os.listdir(ASSISTANT_DIR)
+        if f.endswith(".py") and not f.startswith("__")
+    ])
+except Exception as e:
+    assistant_types = []
+    st.sidebar.warning(f"⚠️ Error loading assistants: {e}")
+
+# ✅ Assistant selection
+st.markdown("## ⚙️ Choose Assistant")
+if assistant_types:
+    task_type = st.selectbox("Available Assistants", assistant_types)
+else:
+    task_type = None
+    st.warning("⚠️ No assistant scripts found. Upload a .py file to get started.")
+
+# ✅ Assistant configuration form
+with st.form("assistant_form"):
+    prompt = st.text_input("Prompt", "Scrape latest laptops from Newegg with prices and ratings")
+    url = st.text_input("Target URL", "https://www.newegg.com/laptops")
+    filters = st.text_input("Filters (comma-separated)", "price, rating")
+
+    # Show additional input fields for specific assistant types
+    if task_type == "kep_extractor":
+        st.header("📘 KEP Extractor Inputs")
+        course_title = st.text_input("Course Title")
+        module_title = st.text_input("Module Title")
+        lesson_input = st.text_area("Lesson Titles (comma-separated)")
+        lesson_titles = [l.strip() for l in lesson_input.split(",") if l.strip()]
+    elif task_type == "blueprint_generator":
+        st.header("📐 Blueprint Generator Inputs")
+        uploaded_csv = st.file_uploader("Upload KEP CSV", type="csv")
+
+    submitted = st.form_submit_button("💾 Save & Run Assistant")
+
+# ✅ Handle form submission
+if submitted and task_type:
+    # Build config data for the assistant
+    config_data = {
+        "task_type": task_type,
+        "prompt": prompt,
+        "url": url,
+        "filters": filters,
+        "timestamp": datetime.now().isoformat()
+    }
+    # Include additional fields for specific tasks
+    if task_type == "kep_extractor":
+        config_data.update({
+            "course_title": course_title,
+            "module_title": module_title,
+            "lesson_titles": lesson_titles
+        })
+    elif task_type == "blueprint_generator" and uploaded_csv is not None:
+        csv_path = f"uploaded_kep_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+        with open(csv_path, "wb") as f:
+            f.write(uploaded_csv.read())
+        config_data["uploaded_kep_csv"] = csv_path
+
+    # Save config to JSON file and upload to Drive
+    config_filename = f"assistant_config_{task_type}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+    with open(config_filename, "w") as f:
+        json.dump(config_data, f, indent=4)
     try:
-        with open(log_file_path) as f:
-            tail = list(f.readlines())[-5:]
-            with st.sidebar.expander("📄 Preview Last 5 Log Entries"):
-                for line in tail:
-                    st.code(line.strip())
-    except:
-        st.sidebar.caption("⚠️ Failed to preview tail of log.")
+        drive_link = upload_to_drive(config_filename, config_filename)
+        st.success("✅ Configuration saved to Google Drive")
+        st.markdown(f"[📄 View config on Drive]({drive_link})")
+    except Exception as e:
+        st.error(f"❌ Drive upload failed: {e}")
 
+    # Trigger backend API to run the assistant
+    api_base = os.getenv("ASSISTANT_API_URL", "https://assistant-api-pzj8.onrender.com")
+    api_url = f"{api_base}/run-assistant"
+    try:
+        res = requests.post(api_url, json=config_data, timeout=30)
+    except Exception as e:
+        res = None
+        st.error(f"❌ Failed to reach assistant API: {e}")
+    if res and res.status_code == 200:
+        result = res.json()
+        st.success("📬 Assistant triggered successfully!")
+        st.json(result)  # Display JSON response (status and any outputs)
+    else:
+        if res:
+            st.error(f"❌ Assistant API error (status {res.status_code})")
+            st.write(res.text)
+        # If no response at all (exception above), error is already shown.
 
+    # Record last run status in session for sidebar diagnostics
+    st.session_state.last_run = {
+        "assistant": task_type,
+        "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "status_code": res.status_code if res else None,
+        "result_json": (res.json() if res and res.headers.get("content-type","").startswith("application/json") else None)
+    }
 
-# 26️⃣ Assistant Type Quick Switcher (improved rerun logic)
-st.sidebar.markdown("### 🔁 Quick Switch")
-quick_switch = st.sidebar.selectbox("Jump to Assistant", assistant_list, index=0)
-if quick_switch != selected and "switch_target" not in st.session_state:
-    st.session_state["switch_target"] = quick_switch
-    st.experimental_rerun()
+# ✅ Latest output preview (quick view for convenience)
+OUTPUT_DIR = "output"
+os.makedirs(OUTPUT_DIR, exist_ok=True)
+st.markdown("---")
+st.subheader("📄 Latest Output Preview")
+csv_files = [f for f in os.listdir(OUTPUT_DIR) if f.endswith(".csv")]
+if csv_files:
+    latest_file = sorted(csv_files, reverse=True)[0]
+    st.markdown(f"📁 Showing latest output file: `{latest_file}`")
+    try:
+        df = pd.read_csv(os.path.join(OUTPUT_DIR, latest_file))
+        st.dataframe(df.head(10))
+        st.download_button("⬇️ Download CSV", df.to_csv(index=False), file_name=latest_file)
+    except pd.errors.EmptyDataError:
+        st.warning(f"⚠️ `{latest_file}` is empty or malformed – no preview available.")
+    except Exception as e:
+        st.error(f"🚫 Error reading `{latest_file}`: {e}")
+else:
+    st.info("No output files found yet. Run an assistant to generate results.")
 
-# 27️⃣ Filter Assistant Dropdown by Keyword (refined)
-st.sidebar.markdown("### 🔎 Search Assistants")
-search = st.sidebar.text_input("Type to filter", "")
-if search:
-    assistant_list = [a for a in assistant_list if search.lower().strip() in a.lower()]
+# ✅ Assistant-specific output archive (detailed history for the selected assistant)
+st.markdown("---")
+st.subheader("🗂️ Output Archive for Selected Assistant")
+if task_type:
+    assistant_output_dir = os.path.join(OUTPUT_DIR, task_type)
+    if os.path.isdir(assistant_output_dir):
+        output_files = sorted(os.listdir(assistant_output_dir), reverse=True)
+        for fname in output_files:
+            file_path = os.path.join(assistant_output_dir, fname)
+            if fname.endswith(".csv"):
+                with st.expander(f"📊 CSV: {fname}"):
+                    try:
+                        df = pd.read_csv(file_path)
+                        st.dataframe(df.head())
+                        st.download_button("⬇️ Download CSV", df.to_csv(index=False), file_name=fname)
+                    except Exception as e:
+                        st.warning(f"⚠️ Could not preview `{fname}`: {e}")
+            elif fname.endswith((".yaml", ".yml")):
+                with st.expander(f"📐 YAML: {fname}"):
+                    try:
+                        text = open(file_path, "r").read()
+                        st.code(text, language="yaml")
+                        st.download_button("⬇️ Download YAML", text, file_name=fname)
+                    except Exception as e:
+                        st.warning(f"⚠️ Could not read `{fname}`: {e}")
+            elif fname.endswith(".md"):
+                with st.expander(f"📝 Notes: {fname}"):
+                    try:
+                        text = open(file_path, "r").read()
+                        st.markdown(text)
+                        st.download_button("⬇️ Download .md", text, file_name=fname)
+                    except Exception as e:
+                        st.warning(f"⚠️ Could not read `{fname}`: {e}")
+            else:
+                # Generic file type
+                with st.expander(f"📁 File: {fname}"):
+                    st.markdown(f"Stored at: `{file_path}`")
+                    try:
+                        data = open(file_path, "rb").read()
+                        st.download_button("⬇️ Download", data, file_name=fname)
+                    except Exception as e:
+                        st.write(f"*(Unable to read file: {e})*")
+    else:
+        st.info(f"No outputs found yet for assistant `{task_type}`.")
 
-# 28️⃣ Output File Explorer (with size and modified time)
-st.sidebar.markdown("### 📂 Output File Explorer")
-if output_dir.exists():
-    assistant_folders = [f for f in output_dir.iterdir() if f.is_dir()]
-    for folder in assistant_folders:
-        with st.sidebar.expander(f"📁 {folder.name}"):
-            files = list(folder.glob("*"))
-            for file in files[:3]:
-                size = file.stat().st_size
-                mod_time = datetime.fromtimestamp(file.stat().st_mtime).strftime("%Y-%m-%d %H:%M:%S")
-                st.markdown(f"- `{file.name}` • {size} bytes • {mod_time}")
+# ✅ Run history & bundled exports (group outputs by run timestamp and allow bulk download)
+st.markdown("## 🕒 Run History & Bundled Exports")
+if task_type and os.path.isdir(os.path.join(OUTPUT_DIR, task_type)):
+    files = sorted(os.listdir(os.path.join(OUTPUT_DIR, task_type)), reverse=True)
+    # Group files by shared timestamp in filename (assumes filenames contain a timestamp segment)
+    grouped_runs = {}
+    for fname in files:
+        # Assume timestamp is last part of filename before extension (after last underscore)
+        run_id = fname.split("_")[-1].split(".")[0]
+        grouped_runs.setdefault(run_id, []).append(fname)
+    for run_id, file_list in grouped_runs.items():
+        with st.expander(f"🧾 Run {run_id} ({len(file_list)} files)"):
+            st.markdown("**Files:** " + ", ".join(file_list))
+            # Prepare ZIP in-memory for this run
+            import io, zipfile
+            zip_buffer = io.BytesIO()
+            with zipfile.ZipFile(zip_buffer, "w") as zf:
+                for fname in file_list:
+                    fpath = os.path.join(OUTPUT_DIR, task_type, fname)
+                    if os.path.isfile(fpath):
+                        zf.write(fpath, arcname=fname)
+            zip_buffer.seek(0)
+            st.download_button(
+                label=f"⬇️ Download All ({len(file_list)})",
+                data=zip_buffer,
+                file_name=f"{task_type}_run_{run_id}.zip",
+                mime="application/zip"
+            )
+else:
+    st.info("No run history available yet.")
 
-# 29️⃣ Toggle Display Mode (refined with session)
-display_mode = st.sidebar.radio("Display Mode", ["Compact", "Full"])
-st.sidebar.markdown(f"🧰 Current Mode: `{display_mode}`")
-if display_mode == "Compact":
-    st.markdown("<style>div.block-container{padding:1rem;}</style>", unsafe_allow_html=True)
+# ✅ Sidebar: Assistant Uploader and Output Export components
+st.sidebar.markdown("---")
+import upload_zone  # integrates the assistant/script upload UI in sidebar
+import output_export  # integrates the output export UI in sidebar
 
-# 30️⃣ Visual Assistant Icon Map (ready for interactive expansion)
-st.sidebar.markdown("### 🧩 Assistant Icons")
-for k, v in ASSISTANT_TAGS.items():
-    icon = v.split()[0]
-    st.sidebar.markdown(f"- {icon} `{k}`")
-
-from output_export_ui import *  # 👈 enables sidebar ZIP/download tools
+# ✅ Sidebar: System Health & Last-Run Status
+st.sidebar.markdown("---")
+st.sidebar.markdown("### 🩺 System Status")
+# Count of assistants available
+st.sidebar.write(f"**Assistants loaded:** {len(assistant_types)}")
+# Google Drive credential status
+cred_status = "✅ Loaded" if os.path.exists("client_secret.json") else "⚠️ Not provided"
+st.sidebar.write(f"**Google Drive credential:** {cred_status}")
+# Last run status summary
+if 'last_run' in st.session_state:
+    lr = st.session_state.last_run
+    if lr.get("status_code") is None:
+        st.sidebar.write(f"**Last run:** ❌ *Failed to reach API* at {lr.get('time')}")
+    elif lr["status_code"] != 200:
+        st.sidebar.write(f"**Last run:** ❌ *API error (HTTP {lr['status_code']})* at {lr['time']}")
+    else:
+        # API returned 200, check assistant output status
+        out_status = ""
+        if lr["result_json"]:
+            out_status = lr["result_json"].get("output", {}).get("status", "")
+        if out_status.startswith("✅"):
+            st.sidebar.write(f"**Last run:** ✅ *{lr['assistant']}* succeeded at {lr['time']}")
+        elif out_status.startswith("❌"):
+            st.sidebar.write(f"**Last run:** ❌ *{lr['assistant']}* failed at {lr['time']}")
+        else:
+            st.sidebar.write(f"**Last run:** *{lr['assistant']}* completed at {lr['time']}")
+        # If error details present, show a snippet
+        error_msg = None
+        if lr["result_json"]:
+            error_msg = lr["result_json"].get("output", {}).get("error")
+        if error_msg:
+            st.sidebar.caption(f"Last error: {error_msg}")
+else:
+    st.sidebar.write("**Last run:** *(no runs yet)*")
