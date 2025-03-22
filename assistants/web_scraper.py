@@ -34,6 +34,13 @@ def run(config):
 	filename = f"{out_dir}/web_scraper_output_{timestamp}.csv"
         df.to_csv(filename, index=False)
 
+try:
+    # full scraping logic
+    return {"status": "✅ Success", "outputs": [filename]}
+except Exception as e:
+    print("❌ Exception in web_scraper:", e)
+    return {"status": "❌ Failed", "error": str(e)}
+
         return {
             "status": "✅ Success",
             "outputs": [filename]
@@ -41,3 +48,8 @@ def run(config):
 
     except Exception as e:
         return {"status": "❌ Failed", "error": str(e)}
+
+
+print("🧠 Starting web_scraper...")
+print("Target URL:", url)
+print("Filters:", filters)
