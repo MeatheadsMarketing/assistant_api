@@ -1,5 +1,3 @@
-# ✅ Web Scraper Assistant v3 with Tier 3 - Batch 2 Upgrades
-
 import requests
 from bs4 import BeautifulSoup
 import pandas as pd
@@ -141,7 +139,6 @@ def run_web_scraper(config):
         md.write(f"## Web Scraper Summary\nGenerated: {run_id}\n\n")
         md.write(preview)
 
-    # Save metadata
     metadata = {
         "status": "✅ Success",
         "run_id": run_id,
@@ -156,12 +153,10 @@ def run_web_scraper(config):
     with open(os.path.join(archive_dir, "run_metadata.json"), "w") as f:
         json.dump(metadata, f, indent=2)
 
-    # Save full archive output copies
     df.to_csv(os.path.join(archive_dir, f"{base_output}.csv"), index=False)
     with open(os.path.join(archive_dir, f"{base_output}_summary.md"), "w") as f:
         f.write(preview)
 
-    # Webhook callback
     if callback_url:
         try:
             requests.post(callback_url, json=metadata)
