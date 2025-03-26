@@ -1,0 +1,7 @@
+{
+    "task_type": "web_scraper",
+    "prompt": "Scrape latest laptops from Newegg with prices and ratings",
+    "url": "https://books.toscrape.com/",
+    "filters": "price, rating",
+    "timestamp": "2025-03-22T16:30:55.500352"
+}
